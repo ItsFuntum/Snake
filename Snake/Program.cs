@@ -159,3 +159,6 @@ Console.Clear();
 Console.WriteLine($"Game Over! You collided with a wall or yourself.\n" +
                   $"Time Alive: {DateTimeOffset.Now.ToUnixTimeSeconds() - gameStart} seconds\n" +
                   $"Foods Eaten: {snakeLength - snakeStartLength}");
+Thread.Sleep(500);
+Console.WriteLine("\nPress any key to quit the application.");
+Console.ReadKey();
