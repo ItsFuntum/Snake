@@ -70,14 +70,22 @@ void InputHandler()
 Thread inputThread = new Thread(InputHandler);
 inputThread.Start();
 
-// Main game loop
 const int gameSpeed = 200; // Game update interval in ms
+long nextUpdate = DateTimeOffset.Now.ToUnixTimeMilliseconds() + gameSpeed;
 
 long gameStart = DateTimeOffset.Now.ToUnixTimeSeconds();
 
+// Main game loop
 while (gameRunning)
 {
-    long startTime = DateTimeOffset.Now.ToUnixTimeMilliseconds(); // Used to adjust game speed
+    // Calculate the time remaining until the next update
+    long currentTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+    if (currentTime < nextUpdate)
+    {
+        Thread.Sleep((int)(nextUpdate - currentTime));
+    }
+
+    nextUpdate += gameSpeed; // Schedule the next update
 
     // Update snake trail
     snakeTrail.Enqueue((snakeX, snakeY));
@@ -93,7 +101,6 @@ while (gameRunning)
         foodPosition = (random.Next(1, playArea.GetLength(1) - 1), random.Next(1, playArea.GetLength(0) - 1));
     }
 
-
     // Update snake position
     int nextX = snakeX, nextY = snakeY;
     switch (snakeDirection)
@@ -104,8 +111,9 @@ while (gameRunning)
         case "Right": nextX++; break;
     }
 
-    // Check for collision with walls or itself
-    if (playArea[nextY, nextX] == HORIZONTAL || playArea[nextY, nextX] == WALL_LEFT || playArea[nextY, nextX] == WALL_RIGHT || snakeTrail.Contains((nextX, nextY)))
+    // Check for collision
+    if (playArea[nextY, nextX] == HORIZONTAL || playArea[nextY, nextX] == WALL_LEFT ||
+        playArea[nextY, nextX] == WALL_RIGHT || snakeTrail.Contains((nextX, nextY)))
     {
         gameRunning = false;
         continue;
@@ -115,65 +123,39 @@ while (gameRunning)
     snakeX = nextX;
     snakeY = nextY;
 
-    // Clear and render the play area
+    // Render the play area
     Console.SetCursorPosition(0, 0);
     for (int y = 0; y < playArea.GetLength(0); y++)
     {
         for (int x = 0; x < playArea.GetLength(1); x++)
         {
             if (playArea[y, x] == 1)
-            {
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.Write("###"); // Floor and Ceiling
-            }
+                Console.Write("###"); // Wall
             else if (playArea[y, x] == 2)
-            {
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.Write("  #"); // Left Wall
-            }
+                Console.Write("  #");
             else if (playArea[y, x] == 3)
-            {
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.Write("#  "); // Right Wall
-            }
+                Console.Write("#  ");
             else if (snakeX == x && snakeY == y)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(" X "); // Player (snake head)
-            }
+                Console.Write(" X "); // Snake head
             else if (snakeTrail.Contains((x, y)))
-            {
-                Console.ForegroundColor = ConsoleColor.DarkGreen;
                 Console.Write(" o "); // Snake body
-            }
             else if (foodPosition.x == x && foodPosition.y == y)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.Write(" * "); // Food
-            }
             else
-            {
-                Console.Write("   "); // Air
-            }
+                Console.Write("   "); // Empty space
         }
         Console.WriteLine();
     }
-    Console.WriteLine($"Length: {snakeLength}\n" +
-        $"Direction: {snakeDirection}\n\n" +
-        $"Time Elapsed: {DateTimeOffset.Now.ToUnixTimeSeconds() - gameStart} seconds");
 
-    // Adjust game speed
-    long elapsedTime = DateTimeOffset.Now.ToUnixTimeMilliseconds() - startTime;
-    int sleepTime = gameSpeed - (int)elapsedTime;
-    if (sleepTime > 0)
-    {
-        Thread.Sleep(sleepTime);
-    }
+    Console.WriteLine($"Length: {snakeLength}\n" +
+                      $"Direction: {snakeDirection}\n\n" +
+                      $"Time Elapsed: {DateTimeOffset.Now.ToUnixTimeSeconds() - gameStart} seconds");
 }
 
-// Clean up and end input thread
+// Game Over
 gameRunning = false;
 inputThread.Join();
 Console.Clear();
-Console.WriteLine($"Game Over! You collided with a wall or yourself.\nTime Alive: {DateTimeOffset.Now.ToUnixTimeSeconds() - gameStart} seconds\nFoods Eaten: {snakeLength - snakeStartLength}");
-Thread.Sleep(1000);
+Console.WriteLine($"Game Over! You collided with a wall or yourself.\n" +
+                  $"Time Alive: {DateTimeOffset.Now.ToUnixTimeSeconds() - gameStart} seconds\n" +
+                  $"Foods Eaten: {snakeLength - snakeStartLength}");
